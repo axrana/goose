@@ -1,0 +1,1 @@
+package com.goose.android.ui.shared; import androidx.compose.material3.*; import androidx.compose.runtime.*; @Composable fun GooseTheme(darkTheme: Boolean = false, content: @Composable () -> Unit) { MaterialTheme(content = content) }

@@ -1,0 +1,1 @@
+package com.goose.android.ui.more; import androidx.compose.material3.*; import androidx.compose.runtime.*; import com.goose.android.model.GooseAppModel; @OptIn(ExperimentalMaterial3Api::class) @Composable fun MoreScreen(model: GooseAppModel) { Text("More") }
