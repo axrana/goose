@@ -9,7 +9,11 @@ license = "UNLICENSED"
 [lib]
 name = "goose_core"
 path = "src/lib.rs"
-crate-type = ["rlib", "staticlib", "cdylib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/uniffi_bindgen.rs"
 
 [[bin]]
 name = "goose-fixture-index"
@@ -145,6 +149,10 @@ sha2 = "0.10"
 thiserror = "2.0"
 tungstenite = "0.28"
 zip = "0.6"
+uniffi = { version = "0.28", features = ["cli"] }
+
+[build-dependencies]
+uniffi = { version = "0.28", features = ["build"] }
 
 [dev-dependencies]
 tempfile = "3.13"
