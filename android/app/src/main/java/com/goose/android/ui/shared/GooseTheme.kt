@@ -1,0 +1,5 @@
+package com.goose.android.ui.shared
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+@Composable
+fun GooseTheme(content: @Composable () -> Unit) { MaterialTheme(content = content) }
