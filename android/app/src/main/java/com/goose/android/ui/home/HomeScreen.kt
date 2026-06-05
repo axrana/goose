@@ -1,37 +1,32 @@
 package com.goose.android.ui.home
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.goose.android.model.GooseAppModel
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
-fun HomeScreen(model: GooseAppModel) {
-    val connectionState by model.bleManager.connectionState.collectAsState()
-    val sleepScore by model.healthDataStore.todaySleepScoreSummary.collectAsState()
-    val recoveryScore by model.healthDataStore.todayRecoveryScoreSummary.collectAsState()
-    val strainScore by model.healthDataStore.todayStrainScoreSummary.collectAsState()
-    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Goose") }) }) { padding ->
-        LazyColumn(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { Card { Column(modifier = Modifier.padding(16.dp)) { Text("WHOOP Status", style = MaterialTheme.typography.titleMedium); Text("State: $connectionState") } } }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ScoreCard("Sleep", sleepScore, Modifier.weight(1f))
-                    ScoreCard("Recovery", recoveryScore, Modifier.weight(1f))
-                    ScoreCard("Strain", strainScore, Modifier.weight(1f))
-                }
-            }
+fun HomeScreen() {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Today", style = MaterialTheme.typography.headlineLarge)
+        Spacer(Modifier.height(16.dp))
+
+        LazyRow {
+            item { MetricGauge("RECOVERY", "—", Color(0xFF00ADB5)) }
+            item { MetricGauge("STRAIN", "—", Color(0xFF3F51B5)) }
+            item { MetricGauge("SLEEP", "—", Color(0xFF673AB7)) }
         }
-    }
-}
-@Composable
-fun ScoreCard(label: String, score: String, modifier: Modifier) {
-    Card(modifier = modifier) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall)
-            Text(text = score.ifEmpty { "—" }, style = MaterialTheme.typography.headlineMedium)
+
+        Spacer(Modifier.height(24.dp))
+        Text("Device Status", style = MaterialTheme.typography.titleLarge)
+        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("WHOOP 5.0", style = MaterialTheme.typography.titleMedium)
+                Text("Disconnected", color = Color.Gray)
+            }
         }
     }
 }

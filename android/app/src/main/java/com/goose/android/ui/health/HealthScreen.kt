@@ -1,1 +1,0 @@
-package com.goose.android.ui.health; import androidx.compose.material3.*; import androidx.compose.runtime.*; import com.goose.android.model.GooseAppModel; @OptIn(ExperimentalMaterial3Api::class) @Composable fun HealthScreen(model: GooseAppModel) { Text("Health") }

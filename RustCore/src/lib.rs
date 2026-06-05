@@ -1,26 +1,6 @@
 #![recursion_limit = "256"]
-
 uniffi::setup_scaffolding!();
-
-#[uniffi::export]
-pub fn bridge_request(method: String, payload: String) -> String {
-    crate::bridge::handle_bridge_request_json(&format!(
-        r#"{{"schema":"goose.bridge.request.v1","request_id":"android-{}","method":"{}","args":{}}}"#,
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(),
-        method,
-        payload
-    ))
-}
-
-#[uniffi::export]
-pub fn get_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
-
-#[uniffi::export]
-pub fn initialize_database(_db_path: String) {
-}
-
+pub mod android_bridge;
 pub mod activity_candidates;
 pub mod activity_identity;
 pub mod activity_sessions;
@@ -61,5 +41,4 @@ pub mod timeline;
 pub mod tool_args;
 pub mod ui_coverage;
 pub mod validation_labels;
-
 pub use error::{GooseError, GooseResult};

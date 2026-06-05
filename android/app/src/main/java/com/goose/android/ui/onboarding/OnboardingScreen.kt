@@ -1,1 +1,0 @@
-package com.goose.android.ui.onboarding; import androidx.compose.material3.*; import androidx.compose.runtime.*; import com.goose.android.model.GooseAppModel; @Composable fun OnboardingScreen(model: GooseAppModel) { Button(onClick = { model.setOnboardingComplete(true) }) { Text("Start") } }
