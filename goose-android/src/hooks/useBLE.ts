@@ -50,8 +50,8 @@ export function useBLE() {
       if (state === "ready" || state === "connected") {
         store.updateDevice({
           connectedAt: new Date(),
-          name: whoopBLE.getDevice()?.name ?? "WHOOP",
-          id: whoopBLE.getDevice()?.id ?? "",
+          name: "WHOOP",
+          id: whoopBLE.getDeviceId() ?? "",
         });
       }
     };
@@ -99,7 +99,7 @@ export function useBLE() {
   }, []);
 
   const disconnectDevice = useCallback(() => {
-    whoopBLE.disconnect();
+    void whoopBLE.disconnect();
   }, []);
 
   const syncHistorical = useCallback(async () => {
@@ -115,6 +115,6 @@ export function useBLE() {
     disconnectDevice,
     syncHistorical,
     toggleRealtimeHR,
-    isSupported: typeof window !== "undefined" && "bluetooth" in navigator,
+    isSupported: true,
   };
 }

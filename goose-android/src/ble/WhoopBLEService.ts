@@ -1,3 +1,4 @@
+import { BleClient, BleDevice, numberToUUID } from "@capacitor-community/bluetooth-le";
 import type { GooseMessage } from "../types";
 
 export const WHOOP_UUIDS = {
@@ -15,19 +16,18 @@ export const WHOOP_UUIDS = {
   GEN4_NOTIFY_5: "61080005-8d6d-82b8-614a-1c8cb0f8dcc6",
   GEN4_NOTIFY_7: "61080007-8d6d-82b8-614a-1c8cb0f8dcc6",
 
-  HR_SERVICE: "0000180d-0000-1000-8000-00805f9b34fb",
-  HR_MEASUREMENT: "00002a37-0000-1000-8000-00805f9b34fb",
+  HR_SERVICE: numberToUUID(0x180d),
+  HR_MEASUREMENT: numberToUUID(0x2a37),
 
-  BATTERY_SERVICE: "0000180f-0000-1000-8000-00805f9b34fb",
-  BATTERY_LEVEL: "00002a19-0000-1000-8000-00805f9b34fb",
-  BATTERY_STATUS: "00002bed-0000-1000-8000-00805f9b34fb",
+  BATTERY_SERVICE: numberToUUID(0x180f),
+  BATTERY_LEVEL: numberToUUID(0x2a19),
 
-  DEVICE_INFO_SERVICE: "0000180a-0000-1000-8000-00805f9b34fb",
-  MODEL_NUMBER: "00002a24-0000-1000-8000-00805f9b34fb",
-  FIRMWARE_REVISION: "00002a26-0000-1000-8000-00805f9b34fb",
-  HARDWARE_REVISION: "00002a27-0000-1000-8000-00805f9b34fb",
-  SOFTWARE_REVISION: "00002a28-0000-1000-8000-00805f9b34fb",
-  MANUFACTURER_NAME: "00002a29-0000-1000-8000-00805f9b34fb",
+  DEVICE_INFO_SERVICE: numberToUUID(0x180a),
+  MODEL_NUMBER: numberToUUID(0x2a24),
+  FIRMWARE_REVISION: numberToUUID(0x2a26),
+  HARDWARE_REVISION: numberToUUID(0x2a27),
+  SOFTWARE_REVISION: numberToUUID(0x2a28),
+  MANUFACTURER_NAME: numberToUUID(0x2a29),
 };
 
 export interface BLEHeartRateMeasurement {
@@ -75,7 +75,11 @@ export function parseWhoopPacket(data: Uint8Array): { commandNumber: number; pay
   }
 }
 
-export function buildV5CommandFrame(commandNumber: number, sequence: number, payload: Uint8Array = new Uint8Array()): Uint8Array {
+export function buildV5CommandFrame(
+  commandNumber: number,
+  sequence: number,
+  payload: Uint8Array = new Uint8Array()
+): Uint8Array {
   const frameLength = 5 + payload.length;
   const frame = new Uint8Array(frameLength);
   frame[0] = 0xaa;
@@ -100,17 +104,18 @@ type BLEEventMap = {
 };
 
 export class WhoopBLEService {
-  private device: BluetoothDevice | null = null;
-  private server: BluetoothRemoteGATTServer | null = null;
+  private deviceId: string | null = null;
   private connectionState = "disconnected";
   private listeners: Partial<{ [K in keyof BLEEventMap]: BLEEventMap[K][] }> = {};
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private commandSequence = 0;
-  private commandChar: BluetoothRemoteGATTCharacteristic | null = null;
+  private commandCharUUID: string | null = null;
+  private commandServiceUUID: string | null = null;
   private isReconnecting = false;
+  private initialized = false;
 
   static isSupported(): boolean {
-    return "bluetooth" in navigator;
+    return true;
   }
 
   on<K extends keyof BLEEventMap>(event: K, listener: BLEEventMap[K]) {
@@ -120,11 +125,15 @@ export class WhoopBLEService {
 
   off<K extends keyof BLEEventMap>(event: K, listener: BLEEventMap[K]) {
     if (!this.listeners[event]) return;
-    this.listeners[event] = (this.listeners[event] as BLEEventMap[K][]).filter((l) => l !== listener) as typeof this.listeners[K];
+    this.listeners[event] = (this.listeners[event] as BLEEventMap[K][]).filter(
+      (l) => l !== listener
+    ) as typeof this.listeners[K];
   }
 
   private emit<K extends keyof BLEEventMap>(event: K, ...args: Parameters<BLEEventMap[K]>) {
-    (this.listeners[event] as ((...a: Parameters<BLEEventMap[K]>) => void)[] | undefined)?.forEach((l) => l(...args));
+    (this.listeners[event] as ((...a: Parameters<BLEEventMap[K]>) => void)[] | undefined)?.forEach(
+      (l) => l(...args)
+    );
   }
 
   private log(level: GooseMessage["level"], source: string, title: string, body = "") {
@@ -147,31 +156,31 @@ export class WhoopBLEService {
     return this.connectionState;
   }
 
-  async requestDevice(): Promise<boolean> {
-    if (!WhoopBLEService.isSupported()) {
-      this.setConnectionState("unsupported");
-      return false;
+  private async ensureInitialized() {
+    if (!this.initialized) {
+      await BleClient.initialize({ androidNeverForLocation: true });
+      this.initialized = true;
     }
+  }
+
+  async requestDevice(): Promise<boolean> {
     try {
+      await this.ensureInitialized();
       this.setConnectionState("scanning");
       this.log("info", "ble", "scan.start");
-      this.device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { namePrefix: "WHOOP" },
-          { services: [WHOOP_UUIDS.V5_SERVICE] },
-          { services: [WHOOP_UUIDS.GEN4_SERVICE] },
-        ],
+
+      const device: BleDevice = await BleClient.requestDevice({
+        services: [WHOOP_UUIDS.V5_SERVICE, WHOOP_UUIDS.GEN4_SERVICE],
         optionalServices: [
-          WHOOP_UUIDS.V5_SERVICE,
-          WHOOP_UUIDS.GEN4_SERVICE,
           WHOOP_UUIDS.HR_SERVICE,
           WHOOP_UUIDS.BATTERY_SERVICE,
           WHOOP_UUIDS.DEVICE_INFO_SERVICE,
         ],
+        namePrefix: "WHOOP",
       });
 
-      this.log("info", "ble", "device.selected", this.device.name ?? "unnamed");
-      this.device.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
+      this.deviceId = device.deviceId;
+      this.log("info", "ble", "device.selected", device.name ?? device.deviceId);
       return await this.connect();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -182,14 +191,22 @@ export class WhoopBLEService {
   }
 
   async connect(): Promise<boolean> {
-    if (!this.device?.gatt) {
+    if (!this.deviceId) {
       this.setConnectionState("error");
       return false;
     }
     try {
       this.setConnectionState("connecting");
-      this.log("info", "ble", "connect.start", this.device.name ?? "");
-      this.server = await this.device.gatt.connect();
+      this.log("info", "ble", "connect.start", this.deviceId);
+
+      await BleClient.connect(this.deviceId, (deviceId) => {
+        this.log("warn", "ble", "device.disconnected", deviceId);
+        this.setConnectionState("disconnected");
+        this.commandCharUUID = null;
+        this.commandServiceUUID = null;
+        this.scheduleReconnect();
+      });
+
       this.log("info", "ble", "connect.success");
       await this.discoverServices();
       this.setConnectionState("ready");
@@ -203,76 +220,95 @@ export class WhoopBLEService {
   }
 
   private async discoverServices() {
-    if (!this.server) return;
-    const services = await this.server.getPrimaryServices().catch(() => []);
-    this.log("info", "ble", "services.discovered", `${services.length} services`);
+    if (!this.deviceId) return;
 
-    for (const service of services) {
+    const services = [
+      WHOOP_UUIDS.V5_SERVICE,
+      WHOOP_UUIDS.GEN4_SERVICE,
+      WHOOP_UUIDS.HR_SERVICE,
+      WHOOP_UUIDS.BATTERY_SERVICE,
+      WHOOP_UUIDS.DEVICE_INFO_SERVICE,
+    ];
+
+    for (const serviceUUID of services) {
       try {
-        await this.setupService(service);
-      } catch (err) {
-        this.log("warn", "ble", "service.setup_failed", `${service.uuid}: ${err}`);
+        await this.setupService(serviceUUID);
+      } catch {
+        // Service may not be present on this device
       }
     }
   }
 
-  private async setupService(service: BluetoothRemoteGATTService) {
-    const uuid = service.uuid.toLowerCase();
+  private async setupService(serviceUUID: string) {
+    if (!this.deviceId) return;
+    const uuid = serviceUUID.toLowerCase();
 
     if (uuid === WHOOP_UUIDS.HR_SERVICE) {
-      await this.setupHRService(service);
+      await this.setupHRService();
     } else if (uuid === WHOOP_UUIDS.BATTERY_SERVICE) {
-      await this.setupBatteryService(service);
+      await this.setupBatteryService();
     } else if (uuid === WHOOP_UUIDS.DEVICE_INFO_SERVICE) {
-      await this.readDeviceInfo(service);
+      await this.readDeviceInfo();
     } else if (uuid.startsWith("fd4b") || uuid.startsWith("61080")) {
-      await this.setupWhoopService(service);
+      await this.setupWhoopService(serviceUUID);
     }
   }
 
-  private async setupHRService(service: BluetoothRemoteGATTService) {
+  private async setupHRService() {
+    if (!this.deviceId) return;
     try {
-      const hrChar = await service.getCharacteristic(WHOOP_UUIDS.HR_MEASUREMENT);
-      await hrChar.startNotifications();
-      hrChar.addEventListener("characteristicvaluechanged", (event) => {
-        const char = event.target as BluetoothRemoteGATTCharacteristic;
-        if (!char.value) return;
-        const parsed = parseHeartRateMeasurement(char.value);
-        if (parsed) {
-          this.emit("heartRate", parsed.bpm, parsed.rrIntervalsMS, "ble.hr.standard");
+      await BleClient.startNotifications(
+        this.deviceId,
+        WHOOP_UUIDS.HR_SERVICE,
+        WHOOP_UUIDS.HR_MEASUREMENT,
+        (value: DataView) => {
+          const parsed = parseHeartRateMeasurement(value);
+          if (parsed) {
+            this.emit("heartRate", parsed.bpm, parsed.rrIntervalsMS, "ble.hr.standard");
+          }
         }
-      });
+      );
       this.log("info", "ble.hr", "hr_notifications.started");
     } catch (err) {
       this.log("warn", "ble.hr", "hr_setup.failed", String(err));
     }
   }
 
-  private async setupBatteryService(service: BluetoothRemoteGATTService) {
+  private async setupBatteryService() {
+    if (!this.deviceId) return;
     try {
-      const battChar = await service.getCharacteristic(WHOOP_UUIDS.BATTERY_LEVEL);
-      const value = await battChar.readValue();
+      const value = await BleClient.read(
+        this.deviceId,
+        WHOOP_UUIDS.BATTERY_SERVICE,
+        WHOOP_UUIDS.BATTERY_LEVEL
+      );
       const percent = value.getUint8(0);
       this.emit("batteryLevel", percent, null);
       this.log("info", "ble.battery", "battery.read", `${percent}%`);
 
-      await battChar.startNotifications().catch(() => null);
-      battChar.addEventListener("characteristicvaluechanged", (event) => {
-        const char = event.target as BluetoothRemoteGATTCharacteristic;
-        if (!char.value) return;
-        this.emit("batteryLevel", char.value.getUint8(0), null);
-      });
+      await BleClient.startNotifications(
+        this.deviceId,
+        WHOOP_UUIDS.BATTERY_SERVICE,
+        WHOOP_UUIDS.BATTERY_LEVEL,
+        (v: DataView) => {
+          this.emit("batteryLevel", v.getUint8(0), null);
+        }
+      ).catch(() => null);
     } catch (err) {
       this.log("warn", "ble.battery", "battery.failed", String(err));
     }
   }
 
-  private async readDeviceInfo(service: BluetoothRemoteGATTService) {
-    const readChar = async (uuid: string, key: string) => {
+  private async readDeviceInfo() {
+    if (!this.deviceId) return;
+    const readChar = async (charUUID: string, key: string) => {
       try {
-        const char = await service.getCharacteristic(uuid);
-        const value = await char.readValue();
-        const text = new TextDecoder().decode(value);
+        const value = await BleClient.read(
+          this.deviceId!,
+          WHOOP_UUIDS.DEVICE_INFO_SERVICE,
+          charUUID
+        );
+        const text = new TextDecoder().decode(value.buffer);
         this.emit("deviceInfo", key, text.trim());
       } catch {
         /* optional */
@@ -285,26 +321,33 @@ export class WhoopBLEService {
     await readChar(WHOOP_UUIDS.MANUFACTURER_NAME, "manufacturerName");
   }
 
-  private async setupWhoopService(service: BluetoothRemoteGATTService) {
+  private async setupWhoopService(serviceUUID: string) {
+    if (!this.deviceId) return;
     try {
-      const chars = await service.getCharacteristics();
+      const services = await BleClient.getServices(this.deviceId);
+      const service = services.find((s) => s.uuid.toLowerCase() === serviceUUID.toLowerCase());
+      if (!service) return;
+      const chars = service.characteristics;
       for (const char of chars) {
-        if (char.properties.write || char.properties.writeWithoutResponse) {
-          this.commandChar = char;
+        const props = char.properties;
+        if (props.write || props.writeWithoutResponse) {
+          this.commandCharUUID = char.uuid;
+          this.commandServiceUUID = serviceUUID;
           this.log("info", "ble.whoop", "command_char.found", char.uuid);
         }
-        if (char.properties.notify || char.properties.indicate) {
-          await char.startNotifications().catch(() => null);
-          char.addEventListener("characteristicvaluechanged", (event) => {
-            const c = event.target as BluetoothRemoteGATTCharacteristic;
-            if (!c.value) return;
-            const data = new Uint8Array(c.value.buffer);
-            this.handleWhoopNotification(service.uuid, c.uuid, data);
-          });
+        if (props.notify || props.indicate) {
+          await BleClient.startNotifications(
+            this.deviceId,
+            serviceUUID,
+            char.uuid,
+            (value: DataView) => {
+              const data = new Uint8Array(value.buffer);
+              this.handleWhoopNotification(serviceUUID, char.uuid, data);
+            }
+          ).catch(() => null);
         }
       }
-      this.log("info", "ble.whoop", "whoop_service.ready", service.uuid.slice(0, 8));
-
+      this.log("info", "ble.whoop", "whoop_service.ready", serviceUUID.slice(0, 8));
       await this.sendGetDataRange();
     } catch (err) {
       this.log("warn", "ble.whoop", "whoop_service.failed", String(err));
@@ -321,7 +364,7 @@ export class WhoopBLEService {
     if (commandNumber === 0x01) {
       this.emit("syncProgress", "receiving", `cmd=0x01 bytes=${data.length}`, payload.length, false);
     } else if (commandNumber === 0x02) {
-      this.emit("syncProgress", "complete", `cmd=0x02 historical sync complete`, payload.length, true);
+      this.emit("syncProgress", "complete", "cmd=0x02 historical sync complete", payload.length, true);
     } else if (commandNumber === 0x20 || commandNumber === 0x21) {
       if (payload.length >= 2) {
         const bpm = (payload[0] << 8) | payload[1];
@@ -356,29 +399,27 @@ export class WhoopBLEService {
   }
 
   private async sendCommand(commandNumber: number, payload: Uint8Array) {
-    if (!this.commandChar) {
+    if (!this.deviceId || !this.commandCharUUID || !this.commandServiceUUID) {
       this.log("warn", "ble.cmd", "command.no_char", `cmd=0x${commandNumber.toString(16)}`);
       return;
     }
     const seq = (this.commandSequence++) & 0xff;
     const frame = buildV5CommandFrame(commandNumber, seq, payload);
     try {
-      await this.commandChar.writeValue(frame.buffer as ArrayBuffer);
+      await BleClient.write(
+        this.deviceId,
+        this.commandServiceUUID,
+        this.commandCharUUID,
+        new DataView(frame.buffer)
+      );
       this.log("debug", "ble.cmd", `cmd.sent=0x${commandNumber.toString(16)}`, `seq=${seq}`);
     } catch (err) {
       this.log("error", "ble.cmd", "command.failed", String(err));
     }
   }
 
-  private onDisconnected() {
-    this.log("warn", "ble", "device.disconnected");
-    this.setConnectionState("disconnected");
-    this.commandChar = null;
-    this.scheduleReconnect();
-  }
-
   private scheduleReconnect() {
-    if (this.isReconnecting || !this.device) return;
+    if (this.isReconnecting || !this.deviceId) return;
     this.isReconnecting = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(async () => {
@@ -389,17 +430,19 @@ export class WhoopBLEService {
     }, 3000);
   }
 
-  disconnect() {
+  async disconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.isReconnecting = false;
-    this.device?.gatt?.disconnect();
-    this.commandChar = null;
-    this.server = null;
+    if (this.deviceId) {
+      await BleClient.disconnect(this.deviceId).catch(() => null);
+    }
+    this.commandCharUUID = null;
+    this.commandServiceUUID = null;
     this.setConnectionState("disconnected");
   }
 
-  getDevice() {
-    return this.device;
+  getDeviceId() {
+    return this.deviceId;
   }
 
   isConnected() {
