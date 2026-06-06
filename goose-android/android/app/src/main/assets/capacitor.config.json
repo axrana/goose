@@ -1,0 +1,17 @@
+{
+	"appId": "com.goose.whoop",
+	"appName": "Goose",
+	"webDir": "dist",
+	"android": {},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 1500,
+			"backgroundColor": "#0f1619",
+			"showSpinner": false
+		},
+		"StatusBar": {
+			"style": "dark",
+			"backgroundColor": "#0f1619"
+		}
+	}
+}
