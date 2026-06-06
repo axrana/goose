@@ -1,5 +1,13 @@
 #![recursion_limit = "256"]
 
+uniffi::setup_scaffolding!();
+
+#[cfg(target_os = "android")]
+mod android_jni;
+
+#[cfg(target_os = "android")]
+pub use android_jni::*;
+
 pub mod activity_candidates;
 pub mod activity_identity;
 pub mod activity_sessions;

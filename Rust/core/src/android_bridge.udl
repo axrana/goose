@@ -1,0 +1,5 @@
+interface GooseBridge {
+    string bridge_request(string method, string payload);
+    string get_version();
+    void initialize_database(string db_path);
+};

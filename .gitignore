@@ -16,3 +16,8 @@ Rust/iphoneos/
 Rust/iphonesimulator/
 Vendor/CodexRust/codex-rs/target/
 tmp/
+
+# Gradle build artifacts — never commit these
+**/.gradle/
+**/build/
+android/local.properties
