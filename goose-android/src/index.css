@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html {
+    background-color: #0f1619;
+    color: #e8edef;
+    font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #0f1619;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  scrollbar-width: none;
+}
+
+@layer components {
+  .card {
+    @apply bg-goose-card rounded-2xl;
+  }
+
+  .metric-value {
+    @apply text-4xl font-bold text-goose-text tabular-nums;
+  }
+
+  .metric-label {
+    @apply text-xs font-medium text-goose-muted uppercase tracking-wider;
+  }
+
+  .tab-bar {
+    @apply fixed bottom-0 left-0 right-0 bg-goose-bg border-t border-goose-border;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+  }
+
+  .page-content {
+    @apply pb-24 pt-2 px-4;
+  }
+
+  .section-header {
+    @apply text-lg font-semibold text-goose-text mb-3;
+  }
+
+  .stat-row {
+    @apply flex items-center justify-between py-3 border-b border-goose-border last:border-0;
+  }
+
+  .btn-primary {
+    @apply bg-goose-recovery text-black font-semibold py-3 px-6 rounded-xl active:opacity-80 transition-opacity;
+  }
+
+  .btn-secondary {
+    @apply bg-goose-border text-goose-text font-medium py-3 px-6 rounded-xl active:opacity-80 transition-opacity;
+  }
+
+  .badge {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .safe-top {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+  }
+
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  }
+
+  .press-scale {
+    @apply transition-transform active:scale-95;
+  }
+}
+
+.radial-progress {
+  transform: rotate(-90deg);
+}
+
+.recharts-surface {
+  overflow: visible;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
