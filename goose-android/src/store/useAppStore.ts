@@ -118,6 +118,7 @@ const defaultEnergy: EnergyBankSummary = {
   points: [],
   totalCharged: 0,
   totalDrained: 0,
+  primarySleepCharge: 0,
   hasData: false,
 };
 

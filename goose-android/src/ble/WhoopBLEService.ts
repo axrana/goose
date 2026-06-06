@@ -363,7 +363,7 @@ export class WhoopBLEService {
     const seq = (this.commandSequence++) & 0xff;
     const frame = buildV5CommandFrame(commandNumber, seq, payload);
     try {
-      await this.commandChar.writeValue(frame);
+      await this.commandChar.writeValue(frame.buffer as ArrayBuffer);
       this.log("debug", "ble.cmd", `cmd.sent=0x${commandNumber.toString(16)}`, `seq=${seq}`);
     } catch (err) {
       this.log("error", "ble.cmd", "command.failed", String(err));

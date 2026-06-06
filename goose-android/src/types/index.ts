@@ -149,6 +149,7 @@ export interface EnergyBankSummary {
   points: EnergyStressPoint[];
   totalCharged: number;
   totalDrained: number;
+  primarySleepCharge: number;
   hasData: boolean;
 }
 
